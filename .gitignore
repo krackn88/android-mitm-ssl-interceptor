@@ -1,0 +1,16 @@
+.DS_Store
+*.pyc
+__pycache__/
+venv/
+env/
+*.log
+*.mitm
+extracted_payloads/
+api_docs/
+protocol_analysis/
+*.bin
+*.png
+*.pdf
+*.swp
+.vscode/
+.idea/
