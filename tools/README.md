@@ -1,20 +1,23 @@
 # Android MITM Analysis Tools
 
-This directory contains the analysis tools for working with captured traffic.
+This directory contains helper scripts for working with captured mitmproxy traffic.
 
-## Tools
+## Available tools
 
-- `analyze_traffic.py` - Traffic analysis tool
-- `extract_payloads.py` - Payload extraction tool
-- `decode_payload.py` - Payload decoder
-- `analyze_binary.py` - Binary format analyzer
-- `map_api.py` - API mapping tool
-- `detect_protocol.py` - Protocol detection and reverse engineering
+- `analyze_traffic.py` - Analyze endpoints, status codes, auth patterns, and content types.
+- `extract_payloads.py` - Extract request/response payloads to a directory with metadata and summary stats.
 
 ## Requirements
 
 Install requirements with:
 
 ```bash
-pip install -r requirements.txt
+pip install -r tools/requirements.txt
+```
+
+## Example usage
+
+```bash
+python tools/analyze_traffic.py capture.mitm
+python tools/extract_payloads.py --decode --group endpoint capture.mitm
 ```

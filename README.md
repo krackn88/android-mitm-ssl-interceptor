@@ -58,36 +58,18 @@ chmod +x setup_android_mitm.sh
 
 2. **Analyze Traffic**:
    ```bash
-   python analyze_traffic.py captured_traffic.mitm
+   python tools/analyze_traffic.py captured_traffic.mitm
    ```
 
 3. **Extract Payloads**:
    ```bash
-   python extract_payloads.py captured_traffic.mitm
-   ```
-
-4. **Detect Protocols**:
-   ```bash
-   python detect_protocol.py captured_traffic.mitm
-   ```
-
-5. **Decode Payloads**:
-   ```bash
-   python decode_payload.py payload.bin
-   ```
-
-6. **Map API**:
-   ```bash
-   python map_api.py --output api_docs captured_traffic.mitm
+   python tools/extract_payloads.py captured_traffic.mitm
    ```
 
 ## Documentation
 
-- [Installation Guide](docs/INSTALLATION.md)
-- [Usage Guide](docs/USAGE.md)
 - [Analysis Workflow](docs/ANALYSIS_WORKFLOW.md)
-- [Troubleshooting](docs/TROUBLESHOOTING.md)
-- [Advanced Configuration](docs/ADVANCED.md)
+- [Analysis Tools](docs/ANALYSIS_TOOLS.md)
 
 ## Tool Reference
 
@@ -95,10 +77,7 @@ chmod +x setup_android_mitm.sh
 
 - **analyze_traffic.py**: Analyze mitmproxy dump files to identify API patterns
 - **extract_payloads.py**: Extract and organize request/response payloads
-- **decode_payload.py**: Decode various encoding formats
-- **analyze_binary.py**: Identify binary data structures
-- **map_api.py**: Generate API documentation
-- **detect_protocol.py**: Identify and reverse engineer protocols
+- Additional scripts can be added under `tools/` as your workflow grows
 
 ### Frida Scripts
 
@@ -118,7 +97,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License.
 
 ## Disclaimer
 

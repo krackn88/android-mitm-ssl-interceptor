@@ -42,8 +42,12 @@ try:
     from mitmproxy import io
     from mitmproxy.exceptions import FlowReadException
 except ImportError:
-    print("Error: mitmproxy package not found. Install with: pip install mitmproxy", file=sys.stderr)
-    sys.exit(1)
+    io = None
+
+    class FlowReadException(Exception):
+        """Fallback exception used when mitmproxy is unavailable."""
+
+        pass
 
 
 class PayloadExtractor:
@@ -64,15 +68,16 @@ class PayloadExtractor:
     def extract_payloads(self, dump_file):
         """Extract payloads from a mitmproxy dump file"""
         print(f"Processing {dump_file}...")
+
+        if not os.path.isfile(dump_file):
+            print(f"Error: file not found: {dump_file}", file=sys.stderr)
+            sys.exit(1)
         
         # Create output directory
         os.makedirs(self.base_dir, exist_ok=True)
         
-        # Extract flows
-        flows = self._read_flows(dump_file)
-        
-        # Process each flow
-        for flow in flows:
+        # Process each flow as it is read to avoid loading large captures into memory
+        for flow in self._read_flows(dump_file):
             self._process_flow(flow)
         
         # Generate summary report
@@ -84,7 +89,10 @@ class PayloadExtractor:
     
     def _read_flows(self, dump_file):
         """Read flows from a mitmproxy dump file"""
-        flows = []
+        if io is None:
+            print("Error: mitmproxy package not found. Install with: pip install mitmproxy", file=sys.stderr)
+            sys.exit(1)
+
         try:
             with open(dump_file, "rb") as f:
                 freader = io.FlowReader(f)
@@ -92,13 +100,11 @@ class PayloadExtractor:
                     if flow.request and flow.response:
                         # Apply filters
                         if self._apply_filters(flow):
-                            flows.append(flow)
                             self.stats["total_flows"] += 1
+                            yield flow
         except FlowReadException as e:
             print(f"Error reading flow file: {e}", file=sys.stderr)
             sys.exit(1)
-        
-        return flows
     
     def _apply_filters(self, flow):
         """Apply configured filters to a flow"""
@@ -114,7 +120,7 @@ class PayloadExtractor:
                 return False
         
         # Status code filter
-        if self.options.status and int(self.options.status) != flow.response.status_code:
+        if self.options.status is not None and self.options.status != flow.response.status_code:
             return False
         
         return True
@@ -295,14 +301,18 @@ class PayloadExtractor:
     
     def _normalize_path(self, path):
         """Normalize paths by replacing likely IDs with placeholders"""
+        # Replace UUIDs first to avoid partial replacement of leading digits
+        normalized = re.sub(
+            r'/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}',
+            '/{uuid}',
+            path,
+        )
+
         # Replace numeric segments in path
-        normalized = re.sub(r'/\d+', '/{id}', path)
-        
-        # Replace UUIDs
-        normalized = re.sub(r'/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}', '/{uuid}', normalized)
+        normalized = re.sub(r'/\d+(?=/|$)', '/{id}', normalized)
         
         # Replace long hex strings
-        normalized = re.sub(r'/[0-9a-f]{16,}', '/{hash}', normalized)
+        normalized = re.sub(r'/[0-9a-fA-F]{16,}', '/{hash}', normalized)
         
         return normalized
     
@@ -358,7 +368,7 @@ def main():
     parser.add_argument("-o", "--output", default="./extracted_payloads", help="Output directory for extracted payloads")
     parser.add_argument("-f", "--filter", help="Filter by URL pattern")
     parser.add_argument("-t", "--type", help="Filter by content type")
-    parser.add_argument("-s", "--status", help="Filter by response status code")
+    parser.add_argument("-s", "--status", type=int, help="Filter by response status code")
     parser.add_argument("-g", "--group", default="endpoint", choices=["domain", "endpoint", "flow", "flat"], help="How to group extractions")
     parser.add_argument("-d", "--decode", action="store_true", help="Attempt to decode payloads")
     parser.add_argument("-m", "--max-size", type=int, default=10240, help="Max file size to extract in KB")
