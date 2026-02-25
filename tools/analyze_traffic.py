@@ -20,11 +20,8 @@ Options:
     -v, --verbose       Increase output verbosity
 """
 
-import os
 import sys
 import json
-import base64
-import zlib
 import argparse
 import re
 from urllib.parse import urlparse, parse_qs
@@ -170,26 +167,30 @@ class TrafficAnalyzer:
                     if isinstance(body, dict):
                         for key in body.keys():
                             self.endpoints[endpoint_key]["parameters"].add(key)
-                except:
+                except (UnicodeDecodeError, json.JSONDecodeError, TypeError):
                     pass
             elif "x-www-form-urlencoded" in req_content_type:
                 try:
                     form_data = parse_qs(req.content.decode('utf-8'))
                     for key in form_data.keys():
                         self.endpoints[endpoint_key]["parameters"].add(key)
-                except:
+                except UnicodeDecodeError:
                     pass
     
     def _normalize_path(self, path):
         """Normalize paths by replacing likely IDs with placeholders"""
+        # Replace UUIDs first to avoid partial replacement of leading digits
+        normalized = re.sub(
+            r'/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}',
+            '/{uuid}',
+            path,
+        )
+
         # Replace numeric segments in path
-        normalized = re.sub(r'/\d+', '/{id}', path)
-        
-        # Replace UUIDs
-        normalized = re.sub(r'/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}', '/{uuid}', normalized)
+        normalized = re.sub(r'/\d+(?=/|$)', '/{id}', normalized)
         
         # Replace long hex strings
-        normalized = re.sub(r'/[0-9a-f]{16,}', '/{hash}', normalized)
+        normalized = re.sub(r'/[0-9a-fA-F]{16,}', '/{hash}', normalized)
         
         return normalized
     
@@ -268,9 +269,9 @@ class TrafficAnalyzer:
         stats = {
             "total_flows": sum(endpoint["count"] for endpoint in self.endpoints.values()),
             "unique_endpoints": len(self.endpoints),
-            "domains": list(self.domains),
-            "status_codes": {str(code): count for code, count in self.status_codes.items()},
-            "content_types": list(self.content_types),
+            "domains": sorted(self.domains),
+            "status_codes": {str(code): count for code, count in sorted(self.status_codes.items())},
+            "content_types": sorted(self.content_types),
             "auth_mechanisms": self.auth_mechanisms
         }
         
@@ -282,11 +283,11 @@ class TrafficAnalyzer:
                 "path": endpoint["path"],
                 "method": endpoint["method"],
                 "count": endpoint["count"],
-                "parameters": list(endpoint["parameters"]),
-                "status_codes": {str(code): count for code, count in endpoint["status_codes"].items()},
-                "headers": list(endpoint["headers"]),
-                "content_types": list(endpoint["content_types"]),
-                "response_types": list(endpoint["response_types"]),
+                "parameters": sorted(endpoint["parameters"]),
+                "status_codes": {str(code): count for code, count in sorted(endpoint["status_codes"].items())},
+                "headers": sorted(endpoint["headers"]),
+                "content_types": sorted(endpoint["content_types"]),
+                "response_types": sorted(endpoint["response_types"]),
                 "sample_url": endpoint["sample_url"]
             }
         
@@ -294,9 +295,9 @@ class TrafficAnalyzer:
         for key, pattern in self.api_patterns.items():
             patterns[key] = {
                 "endpoints": pattern["endpoints"],
-                "methods": list(pattern["methods"]),
+                "methods": sorted(pattern["methods"]),
                 "count": pattern["count"],
-                "parameters": list(pattern["parameters"])
+                "parameters": sorted(pattern["parameters"])
             }
         
         results = {
